@@ -1,20 +1,149 @@
-# Reproducible Research: Peer Assessment 1
+Monitoring of daily activity
+============================
+### Coursera course: Reproducible Research, Project 1
+### Date: 13-06-2014
+### Author: Wai-Wah Liu
 
+First set working directory
+```{r, echo=TRUE}
+setwd("H:\\Coursera\\Data Science Track\\05_Reproducible Research\\week 2\\RepData_PeerAssessment1\\RepData_PeerAssessment1\\activity")
+````
+Read in dataset
+```{r, echo=TRUE}
+act <- read.csv("H:\\Coursera\\Data Science Track\\05_Reproducible Research\\week 2\\RepData_PeerAssessment1\\RepData_PeerAssessment1\\activity\\activity.csv", sep=",", header=TRUE, na.strings="NA")
+``` 
+convert date to date format 
+```{r, echo=TRUE}
+act$date <- as.Date(as.character(act$date, format = "%Y-%m-%d"))
+```
+Add a day variable
+```{r, echo=TRUE}
+act$day <- as.numeric(format(act$date, "%d"))   
+act$day[act$date >= "2012-11-01"] <- act$day[act$date >= "2012-11-01"] + 31  
+```
 
-## Loading and preprocessing the data
+#### 1. Make a histogram of the total number of steps taken each day
+First calculate total number of steps per day
+```{r, echo=TRUE}
+sumOfSteps <- aggregate(act$steps, list(act$day), FUN="sum")
+```
+Plot the histogram
+```{r, fig.width=11, echo=TRUE}
+barplot(sumOfSteps[, 2], names.arg=1:61, xlab="Number of days", ylab="Sum of taken steps", col="red")
+```
+#### 2. Calculate and report the mean and median total number of steps taken per day
+```{r, echo=TRUE}
+meanSteps <- aggregate(act$steps, list(act$day), FUN="mean")
+colnames(meanSteps)[1] <- "Day"
+colnames(meanSteps)[2] <- "Mean"
+print(meanSteps, row.names=FALSE)
+```
 
+```{r, echo=TRUE}
+medianSteps <- aggregate(act$steps, list(act$day), FUN="median")
+colnames(medianSteps)[1] <- "Day"
+colnames(medianSteps)[2] <- "Median"
+print(medianSteps, row.names=FALSE)
+```
+#### 3. Make a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+Calculate and plot average steps across all days by interval
+```{r, echo=TRUE}
+grandMeanSteps <- aggregate(act$steps, list(act$interval), FUN="mean", na.rm=TRUE)
+colnames(grandMeanSteps)[1] <- "Interval"
+colnames(grandMeanSteps)[2] <- "Mean"
+plot(grandMeanSteps, type="l", xlab="Five minute interval", ylab="Mean of taken steps", lwd=2)
+```
 
+#### 4. Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+```{r, echo=TRUE}
+maxStep <- grandMeanSteps[which.max(grandMeanSteps[ ,2]), 1]
+print(maxStep)
+```
 
-## What is mean total number of steps taken per day?
+#### 5. Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs)
+```{r, echo=TRUE}
+table(is.na(act$steps))
+print("There are 2304 rows with NAs")
+```
+#### 6. Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated.
+The grand mean of steps per time interval is already calculated. So these values will be used to replace missing values.
 
+#### 7. Create a new dataset that is equal to the original dataset but with the missing data filled in.
+Make copy of the original dataset and fill in missing values
+```{r, echo=TRUE}
+actNAreplace <- act
 
+for (i in 1:nrow(actNAreplace))
+  {
+   if (is.na(actNAreplace$steps[i])) actNAreplace$steps[i] <- grandMeanSteps$Mean[grandMeanSteps$Interval==actNAreplace$interval[i]]
+  }
 
-## What is the average daily activity pattern?
+print(actNAreplace[1:10, ])
+``` 
 
+#### 8. Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?
+Calculate and report new means and medians
+```{r, echo=TRUE}
+meanSteps2 <- aggregate(actNAreplace$steps, list(actNAreplace$day), FUN="mean")
+colnames(meanSteps2)[1] <- "Day"
+colnames(meanSteps2)[2] <- "Mean"
+print(meanSteps2, row.names=FALSE)
+```
 
+```{r, echo=TRUE}
+medianSteps2 <- aggregate(actNAreplace$steps, list(actNAreplace$day), FUN="median")
+colnames(medianSteps2)[1] <- "Day"
+colnames(medianSteps2)[2] <- "Median"
+print(medianSteps2, row.names=FALSE)
+```
+Plot the new histogram
+```{r, fig.width=11, echo=TRUE}
+barplot(meanSteps[, 2], names.arg=1:61, xlab="Number of days", ylab="Mean of taken steps", col="red")
+```
+Differences of means and medians
+```{r, echo=TRUE}
+meanSteps[ ,2] - meanSteps2[ ,2]
+medianSteps[ ,2] - medianSteps2[ ,2]
+```
+As can be seen the new means and medians only effect entire days because only steps from entire days are missing
+```{r, echo=TRUE}
+print(mean(meanSteps[ ,2], na.rm=TRUE) - mean(meanSteps2[ ,2]), digits=3)
+mean(medianSteps[ ,2], na.rm=TRUE) - mean(medianSteps2[ ,2])
+```
+The new means and median seem to have no effect for the mean (which is somehow exactly zero). However the new medians will cause the average median to go up because old value minus new value is a negative number.
 
-## Imputing missing values
+#### 9. Create a new factor variable in the dataset with two levels - "weekday" and "weekend" indicating whether a given date is a weekday or weekend day.
+```{r, echo=TRUE}
+actNAreplace$actualDay <- weekdays(actNAreplace$date)
 
+NonWeekend <- c("maandag","dinsdag","woensdag","donderdag","vrijdag")
+Weekend <- c("zaterdag","zondag")
 
+actNAreplace$weekday[actNAreplace$actualDay %in% NonWeekend] <- 1
+actNAreplace$weekday[actNAreplace$actualDay %in% Weekend] <- 2
+actNAreplace$weekday <- factor(actNAreplace$weekday, levels=1:2,
+ labels=c("Weekday","Weekend"))
 
-## Are there differences in activity patterns between weekdays and weekends?
+str(actNAreplace)
+```
+#### 10. Make a panel plot containing a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis).
+Calculate and average steps across weekdays by interval
+```{r, echo=TRUE}
+grandMeanWeek <- aggregate(actNAreplace$steps[actNAreplace$weekday=="Weekday"], list(actNAreplace$interval[actNAreplace$weekday=="Weekday"]), FUN="mean", na.rm=TRUE)
+colnames(grandMeanWeek)[1] <- "Interval"
+colnames(grandMeanWeek)[2] <- "Mean"
+```
+Calculate and average steps across weekend by interval
+```{r, echo=TRUE}
+grandMeanWeekend <- aggregate(actNAreplace$steps[actNAreplace$weekday=="Weekend"], list(actNAreplace$interval[actNAreplace$weekday=="Weekend"]), FUN="mean", na.rm=TRUE)
+colnames(grandMeanWeekend)[1] <- "Interval"
+colnames(grandMeanWeekend)[2] <- "Mean"
+```
+Plot the figure
+```{r, fig.width=11, echo=TRUE}
+par(mfrow=c(1,2))
+
+plot(grandMeanWeek, type="l", xlab="Five minute interval", ylab="Mean steps weekdays", ylim=c(0,230), lwd=2)
+
+plot(grandMeanWeekend, type="l", xlab="Five minute interval", ylab="Mean steps weekend", ylim=c(0,230), lwd=2)
+```
